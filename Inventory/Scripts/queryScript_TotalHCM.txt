@@ -1,0 +1,29 @@
+SELECT 
+	barcodeIn, 
+    concat(barcodeIn,"I") AS "Barcode_Out" , 
+    Category, 
+    Quantity, 
+    coalesce(a.SoLuongBanRa, 0) as "SoLuongBanRa", 
+    coalesce(b.SoLuongXuatVM, 0) as "SoLuongXuatVM",
+    Quantity - (
+		coalesce(a.SoLuongBanRa, 0) + coalesce(b.SoLuongXuatVM, 0)
+        ) as "SoLuongTon",
+    c.InboundScan_Date,
+    a.OutboundScan_Latest_Time,
+    b.OutboundScan_VM_Latest_Time
+FROM hcmopsinventory.barcodehcm 
+left join
+	(SELECT scanfield, COUNT(scanfield) as "SoLuongBanRa", MAX(Date(scandate)) AS "OutboundScan_Latest_Time"
+	FROM hcmopsinventory.outboundscanlog
+	GROUP BY scanfield) as a
+ON barcodehcm.barcodeOut = a.scanfield
+left join
+	(SELECT scanfield, COUNT(scanfield) as "SoLuongXuatVM", MAX(Date(scandate)) AS "OutboundScan_VM_Latest_Time"
+	FROM hcmopsinventory.outboundscanlogvm
+	GROUP BY scanfield) as b
+ON barcodehcm.barcodeOut = b.scanfield
+left join 
+	(SELECT scanfield, Date(scandate) as "InboundScan_Date" 
+	FROM hcmopsinventory.inboundscanlog
+	GROUP BY scanfield) as c
+ON barcodehcm.barcodeIn = c.scanfield

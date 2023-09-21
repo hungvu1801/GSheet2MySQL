@@ -1,0 +1,13 @@
+Port: 3306 xPort: 33060
+
+User: Root
+pass: BaeminInventory@123
+
+User: admin1. Pass: BaeminAdmin123
+User: User1. Pass: BaeminUser1123
+
+Window service name: MySQL80
+
+IP add: 10.0.11.120
+Default Gateway: 10.0.11.1
+DNS Servers: 8.8.8.8

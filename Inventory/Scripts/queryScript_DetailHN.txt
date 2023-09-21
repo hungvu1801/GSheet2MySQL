@@ -1,0 +1,103 @@
+WITH tbInbf as
+	(WITH tbInbf_mid as
+		(SELECT scanfield, scandate, date(scandate) as 'Date', a.Category, a.Quantity, week(scandate, 1) as 'Week', month(scandate) as 'Month', year(scandate) as 'Year'
+		FROM hnopsinventory.inboundscanlog
+		left join (
+			SELECT barcodeIn, Category, Quantity
+			FROM hnopsinventory.barcodehn
+			) a
+		on a.barcodeIn = hnopsinventory.inboundscanlog.scanfield)
+	SELECT tbInbf_mid.Category, SUM(tbInbf_mid.Quantity) AS 'InboundBefore'
+	FROM tbInbf_mid
+	WHERE scandate < @datesearch
+	GROUP BY Category),
+    
+tbOutbf as 
+	(WITH tbOutbf_mid as
+		(SELECT scanfield, scandate, date(scandate) as 'Date', a.Category, week(scandate, 1) as 'Week', month(scandate) as 'Month', year(scandate) as 'Year'
+		FROM hnopsinventory.outboundscanlog
+		left join (
+			SELECT barcodeOut, Category
+			FROM hnopsinventory.barcodehn
+			) a
+		on a.barcodeOut = hnopsinventory.outboundscanlog.scanfield)
+	SELECT Category, COUNT(Category) AS 'OutboundBefore'
+	FROM tbOutbf_mid
+	WHERE tbOutbf_mid.Date < @datesearch
+	GROUP BY Category),
+
+tbOutVMbf as
+	(WITH tbOutVMbf_mid as 
+		(SELECT scanfield, scandate, date(scandate) as 'Date', a.Category, week(scandate, 1) as 'Week', month(scandate) as 'Month', year(scandate) as 'Year'
+		FROM hnopsinventory.outboundscanlogvm
+		left join (
+			SELECT barcodeOut, Category
+			FROM hnopsinventory.barcodehn
+			) a
+		on a.barcodeOut = hnopsinventory.outboundscanlogvm.scanfield)
+	SELECT Category, COUNT(Category) AS 'OutboundVMBefore'
+	FROM tbOutVMbf_mid
+	WHERE tbOutVMbf_mid.Date < @datesearch
+	GROUP BY Category),
+    
+tbInaft as
+	(WITH tbInaft_mid as
+		(SELECT scanfield, scandate, date(scandate) as 'Date', a.Category, a.Quantity, week(scandate, 1) as 'Week', month(scandate) as 'Month', year(scandate) as 'Year'
+		FROM hnopsinventory.inboundscanlog
+		left join (
+			SELECT barcodeIn, Category, Quantity
+			FROM hnopsinventory.barcodehn
+			) a
+		on a.barcodeIn = hnopsinventory.inboundscanlog.scanfield)
+	SELECT tbInaft_mid.Category, SUM(tbInaft_mid.Quantity) AS 'InboundAfter'
+	FROM tbInaft_mid
+	WHERE scandate = @datesearch
+	GROUP BY Category),
+
+tbOutaft as 
+	(WITH tbOutaft_mid as
+		(SELECT scanfield, scandate, date(scandate) as 'Date', a.Category, week(scandate, 1) as 'Week', month(scandate) as 'Month', year(scandate) as 'Year'
+		FROM hnopsinventory.outboundscanlog
+		left join (
+			SELECT barcodeOut, Category
+			FROM hnopsinventory.barcodehn
+			) a
+		on a.barcodeOut = hnopsinventory.outboundscanlog.scanfield)
+	SELECT Category, COUNT(Category) AS 'OutboundAfter'
+	FROM tbOutaft_mid
+	WHERE tbOutaft_mid.Date = @datesearch
+	GROUP BY Category),
+tbOutVMaft as
+	(WITH tbOutVMaft_mid as 
+		(SELECT scanfield, scandate, date(scandate) as 'Date', a.Category, week(scandate, 1) as 'Week', month(scandate) as 'Month', year(scandate) as 'Year'
+		FROM hnopsinventory.outboundscanlogvm
+		left join (
+			SELECT barcodeOut, Category
+			FROM hnopsinventory.barcodehn
+			) a
+		on a.barcodeOut = hnopsinventory.outboundscanlogvm.scanfield)
+	SELECT Category, COUNT(Category) AS 'OutboundVMAfter'
+	FROM tbOutVMaft_mid
+	WHERE tbOutVMaft_mid.Date = @datesearch
+	GROUP BY Category)
+
+SELECT tbInbf.Category, 
+	coalesce(InboundBefore, 0) as 'InboundBefore',
+    coalesce(tbOutbf.OutboundBefore, 0) as 'OutboundBefore', 
+    coalesce(tbOutVMbf.OutboundVMBefore, 0) as 'OutboundVMBefore',
+    coalesce(InboundBefore, 0) - 
+		(coalesce(tbOutbf.OutboundBefore, 0) + coalesce(tbOutVMbf.OutboundVMBefore, 0)) as 'Ton dau ky',
+    coalesce(tbInaft.InboundAfter, 0) as 'InboundAfter',
+    coalesce(tbOutaft.OutboundAfter, 0) as 'OutboundAfter', 
+    coalesce(tbOutVMaft.OutboundVMAfter, 0) as 'OutboundVMAfter',
+    coalesce(InboundBefore, 0) + coalesce(tbInaft.InboundAfter, 0) - 
+		(coalesce(tbOutbf.OutboundBefore, 0) + coalesce(tbOutVMbf.OutboundVMBefore, 0) + 
+        coalesce(tbOutaft.OutboundAfter, 0) + coalesce(tbOutVMaft.OutboundVMAfter, 0)) as 'Ton cuoi ky'
+FROM tbInbf
+LEFT JOIN tbInaft ON tbInbf.Category = tbInaft.Category
+LEFT JOIN tbOutbf ON tbInbf.Category = tbOutbf.Category
+LEFT JOIN tbOutVMbf ON tbInbf.Category = tbOutVMbf.Category
+LEFT JOIN tbOutaft ON tbInbf.Category = tbOutaft.Category
+LEFT JOIN tbOutVMaft ON tbInbf.Category = tbOutVMaft.Category
+ORDER BY tbInbf.Category
+;
